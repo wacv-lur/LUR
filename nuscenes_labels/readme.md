@@ -1,4 +1,4 @@
-### NuScenes driver action and intentionr recognition labels
+### NuScenes driver action and intention recognition labels
 
 First download the NuScenes dataset:
 
