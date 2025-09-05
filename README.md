@@ -61,3 +61,11 @@ class LUR_MLP(nn.Module):
         else:
             return y, y_projections 
 ```
+
+### Loss function example
+
+```python
+criterion = nn.CrossEntropyLoss()
+output = model(x) # returns the prediction set
+loss = torch.stack([criterion(y, target) for y in output]).sum()
+```
