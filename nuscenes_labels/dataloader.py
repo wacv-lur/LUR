@@ -1,25 +1,17 @@
-from  torchvision.transforms.functional import pil_to_tensor
 import pandas as pd
 from operator import itemgetter
 from PIL import Image
-import torch
-import torch.nn.functional as F
-from torchvision import transforms
+
 from glob import glob
 import random
-import pytorchvideo.data
+from os.path import exists
 from typing import List
+
+import torch
+import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
-from os.path import exists
-
-from .transforms import (
-    DataAugmentationForVideoMAE,
-    FrameSampler,
-    SequentialRandomSampler,
-    
-)
-
+import pytorchvideo.data
 from pytorchvideo.transforms import (
     ApplyTransformToKey,
     Normalize,
@@ -28,6 +20,7 @@ from pytorchvideo.transforms import (
     ShortSideScale,
     UniformTemporalSubsample,
 )
+
 from torchvision.transforms import (
     Compose,
     Lambda,
@@ -35,6 +28,9 @@ from torchvision.transforms import (
     RandomHorizontalFlip,
     Resize,
 )
+from torchvision import transforms
+from  torchvision.transforms.functional import pil_to_tensor
+
 
 class NuscenesDataset(Dataset):
     def __init__(self,
@@ -47,7 +43,6 @@ class NuscenesDataset(Dataset):
                  std = [0.229, 0.224, 0.225], 
                  ood :bool =False,
                  ):
-        
         self.split_type = split_type
         self.df = self._load_df(label_file_path, split_type, exp_type, ood)
         self.num_classes = self.df.intention.nunique()
@@ -55,23 +50,14 @@ class NuscenesDataset(Dataset):
         self.label2id = {label: i for i, label in enumerate(self.class_labels)}
         self.id2label = {i: label for label, i in self.label2id.items()}
         self.exp_type = exp_type
-        self.transform = Compose([ApplyTransformToKey(
-                                key="video",
-                                transform=Compose([
-                                        SequentialRandomSampler(),
-                                        Lambda(lambda x: x / 255.0),
-                                        Normalize(mean, std),
-                                        RandomShortSideScale(min_size=256, max_size=320),
-                                        RandomCrop(resize_to),
-                                    ]),),])
-        self.transform_test = Compose([ApplyTransformToKey(
+        self.transform =  Compose([ApplyTransformToKey(
                                 key="video",
                                 transform=Compose([
                                         UniformTemporalSubsample(16),
                                         Lambda(lambda x: x / 255.0),
                                         Normalize(mean, std),
-                                        Resize(resize_to),
-                                    ]),),])
+                                        Resize(resize_to), 
+                                ]),),])
         self.flip_transform = RandomHorizontalFlip(p=1.0)
         
     def __len__(self):
@@ -100,13 +86,10 @@ class NuscenesDataset(Dataset):
             return self.load_target(original_label)
         
     def flip(self,label, video):
-        if random.random() > 0.5:
-                        
+        if random.random() > 0.5:        
             video = torch.stack([self.flip_transform(frame) for frame in video]) 
-
         target = self.label_flip(label)
         return target, video
-            
             
     def _load_df(self,
                  label_file_path:str, 
@@ -115,12 +98,10 @@ class NuscenesDataset(Dataset):
                  ood:bool=False):
         df = pd.read_excel(label_file_path).drop(columns={"Unnamed: 0"})
         df = df[df["split"]==split_type]
-        
         if (exp_type == "ood_min") and ood is True:
             df = df[df["intention"] == "right lane change"]
         if (exp_type == "ood_min") and ood is False:
-            df = df[df["intention"] != "right lane change"]
-            
+            df = df[df["intention"] != "right lane change"] 
         if (exp_type == "ood_max") and ood is True:
             df = df[df["intention"] == "moving forward"]
         if (exp_type == "ood_max") and ood is False:
@@ -130,11 +111,9 @@ class NuscenesDataset(Dataset):
     
     def __getitem__(self, index, model_frame_length=16):
         label = self.df.loc[index]["intention"]
-        
         target = self.load_target(label)
         frame_paths = sorted(literal_eval(self.df.loc[index]["frames"]))
         num_frames = len(frame_paths)
-        
         frames = torch.stack([pil_to_tensor(Image.open(f"./CAM_FRONT/{x}")) for x in frame_paths])
         if num_frames < model_frame_length:
             required_frames = model_frame_length - num_frames
@@ -152,5 +131,4 @@ class NuscenesDataset(Dataset):
               
         if self.split_type == "train":
             target, frames = self.flip(label, frames)
-        
         return {"label":target, "exterior_video":frames, "idx": index}
