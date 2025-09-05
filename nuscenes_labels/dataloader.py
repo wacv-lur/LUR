@@ -1,16 +1,13 @@
 import pandas as pd
 from operator import itemgetter
 from PIL import Image
-
 from glob import glob
 import random
 from os.path import exists
 from typing import List
-
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
-
 import pytorchvideo.data
 from pytorchvideo.transforms import (
     ApplyTransformToKey,
@@ -20,7 +17,6 @@ from pytorchvideo.transforms import (
     ShortSideScale,
     UniformTemporalSubsample,
 )
-
 from torchvision.transforms import (
     Compose,
     Lambda,
