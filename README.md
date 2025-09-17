@@ -1,13 +1,16 @@
 # Latent Uncertainty Representation
 Latent Uncertainty Representations for Video-based Driver Action and Intention Recognition
 
-### Abstract
-Deep neural networks (DNNs) are widely used in safety-critical applications such as driver action and intention recognition, but can suffer from overconfident predictions or unreliable uncertainty estimates. Last layer probabilistic deep learning (LL-PDL) approaches introduce stochasticity in the final classification layer to estimate uncertainty, but their effectiveness for detecting out-of-distribution (OOD) instances varies. In this paper, we propose extending pre-trained or fine-tuned DNNs with additional transformation layers to produce multiple latent representations. We compare the  latent uncertainty representation (LUR) and a repulsive LUR (RLUR) approaches to eight PDL approaches in terms of classification performance, calibration, and uncertainty-based OOD detection across four video-based driver action and intention recognition datasets. We introduce a new offline driver intention recognition benchmark for the NuScenes dataset and release annotations of 28,000 frame-level action labels and 1,194 video-level intention labels. Our results show that LUR and RLUR yield comparable in-distribution classification performance compared to the other LL-PDL approaches. For the uncertainty-based OOD detection, LUR and RLUR consistently rank among the top-performing approaches.  
-
-![lur](./src/LUR_overview.png)
 
 ### TLDR:
 The introduction of trainable transformation layers and extending the prediction loss function improves the OOD detection performance.
+![lur](./src/LUR_overview.png)
+
+
+### Abstract
+Deep neural networks (DNNs) are increasingly applied to safety-critical tasks in resource-constrained environments, such as video-based driver action and intention recognition. While last layer probabilistic deep learning (LL--PDL) methods can detect out-of-distribution (OOD) instances, their performance varies. As an alternative to last layer approaches, we propose extending pre-trained DNNs with transformation layers to produce multiple latent representations to estimate the uncertainty. We evaluate our latent uncertainty representation (LUR) and repulsively trained LUR (RLUR) approaches against eight PDL methods across four video-based driver action and intention recognition datasets, comparing classification performance, calibration, and uncertainty-based OOD detection. We also contribute 28,000 frame-level action labels and 1,194 video-level intention labels for the NuScenes dataset. Our results show that LUR and RLUR achieve comparable in-distribution classification performance to other LL--PDL approaches. For uncertainty-based OOD detection, LUR matches top-performing PDL methods while being more efficient to train and easier to tune than approaches that require Markov-Chain Monte Carlo sampling or repulsive training procedures.
+
+
 
 ## Implementation
 Integrating LUR into standard models is simple, and only requires adding the projection layers, updating the forward pass and the loss function to guide the training. 
@@ -34,11 +37,11 @@ class LUR_MLP(nn.Module):
                  in_features,
                  hidden_dim,
                  out_features,
-                 num_projections):
+                 num_transformations):
         super().__init__()
         self.input = nn.Linear(in_features, hidden_dim)
         self.hidden = nn.Linear(hidden_dim, hidden_dim)
-        self.projections = nn.ModuleList([nn.Linear(hidden_dim, hidden_dim) for _ in range(num_projections)])
+        self.trans_layers = nn.ModuleList([nn.Linear(hidden_dim, hidden_dim) for _ in range(num_transformations)])
         self.fc = nn.Linear(hidden_dim, out_features)
         self.activation = nn.ReLU()
 
@@ -48,8 +51,8 @@ class LUR_MLP(nn.Module):
         y = self.output(z)
         output = [y]
 
-        for i, proj in enumerate(self.projections):
-            z_p = self.activation(proj(z))
+        for i, trans in enumerate(self.trans_layers):
+            z_p = self.activation(trans(z))
             output.append(self.fc(z_p))
         return output
 ```
